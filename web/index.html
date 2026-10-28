@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>banano2gif 🍌 | 纯 Web 连续九/十六宫格动图与表情包生成器</title>
+  <script src="lib/gifshot.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --card-bg: rgba(26, 29, 39, 0.85);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --accent: #f59e0b;
+      --accent-hover: #d97706;
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+      --radius: 14px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px;
+      line-height: 1.5;
+    }
+
+    .container { max-width: 1240px; margin: 0 auto; }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 20px;
+      margin-bottom: 24px;
+      border-bottom: 1px solid var(--card-border);
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .logo-area { display: flex; align-items: center; gap: 12px; }
+    .logo-icon { font-size: 32px; }
+    .logo-title { font-size: 24px; font-weight: 700; background: linear-gradient(135deg, #fbbf24, #f59e0b); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .badge { background: rgba(245, 158, 11, 0.15); color: #f59e0b; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .header-links a { color: var(--text-muted); text-decoration: none; font-size: 14px; margin-left: 16px; transition: color 0.2s; }
+    .header-links a:hover { color: var(--accent); }
+    .btn-key { background: #2563eb; color: #fff; padding: 6px 14px; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; }
+    .btn-key:hover { background: #1d4ed8; }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 24px;
+    }
+    @media (max-width: 960px) { .main-grid { grid-template-columns: 1fr; } }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      padding: 24px;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    }
+    .card-title { font-size: 18px; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
+
+    .api-settings {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 20px;
+      padding: 16px;
+      background: rgba(0, 0, 0, 0.25);
+      border-radius: 10px;
+      border: 1px dashed rgba(255, 255, 255, 0.1);
+    }
+    @media (max-width: 600px) { .api-settings { grid-template-columns: 1fr; } }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field label { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+    input[type="text"], input[type="password"], textarea, select {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+
+    .tabs { display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid var(--card-border); padding-bottom: 12px; overflow-x: auto; }
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .tab-btn.active { background: rgba(245, 158, 11, 0.15); color: var(--accent); font-weight: 600; }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    .presets-wrap { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+    .preset-pill {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .preset-pill:hover, .preset-pill.active { background: var(--accent); color: #000; font-weight: 600; border-color: var(--accent); }
+
+    .upload-zone {
+      border: 2px dashed rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      padding: 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+    }
+    .upload-zone:hover { border-color: var(--accent); background: rgba(245, 158, 11, 0.03); }
+    .upload-preview { max-height: 160px; max-width: 100%; border-radius: 8px; margin-top: 12px; display: none; }
+
+    .options-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 14px;
+      margin: 20px 0;
+      padding-top: 16px;
+      border-top: 1px solid var(--card-border);
+    }
+    .switch-label { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; user-select: none; }
+    .switch-label input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); }
+
+    .btn-generate {
+      width: 100%;
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: #000;
+      border: none;
+      padding: 14px;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(245, 158, 11, 0.35);
+      transition: all 0.2s;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-generate:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(245, 158, 11, 0.45); }
+    .btn-generate:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .result-view { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+    .gif-preview-box {
+      width: 320px;
+      height: 320px;
+      border-radius: 14px;
+      border: 1px solid var(--card-border);
+      background-image: linear-gradient(45deg, #181b26 25%, transparent 25%), linear-gradient(-45deg, #181b26 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #181b26 75%), linear-gradient(-45deg, transparent 75%, #181b26 75%);
+      background-size: 20px 20px;
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      position: relative;
+    }
+    .gif-preview-box img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    .status-text { font-size: 13px; color: var(--text-muted); text-align: center; }
+
+    .frames-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+      gap: 6px;
+      width: 100%;
+      margin-top: 16px;
+    }
+    .frame-thumb {
+      aspect-ratio: 1;
+      border-radius: 6px;
+      border: 1px solid var(--card-border);
+      overflow: hidden;
+      background: rgba(0, 0, 0, 0.3);
+    }
+    .frame-thumb img, .frame-thumb canvas { width: 100%; height: 100%; object-fit: cover; }
+
+    .log-box {
+      margin-top: 16px;
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-family: monospace;
+      font-size: 12px;
+      color: #34d399;
+      max-height: 120px;
+      overflow-y: auto;
+      width: 100%;
+    }
+
+    .btn-download {
+      background: #10b981;
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.2s;
+    }
+    .btn-download:hover { background: #059669; }
+
+    .spinner {
+      border: 3px solid rgba(255, 255, 255, 0.2);
+      border-top-color: #000;
+      border-radius: 50%;
+      width: 18px;
+      height: 18px;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="logo-area">
+      <span class="logo-icon">🍌</span>
+      <div>
+        <h1 class="logo-title">banano2gif Web</h1>
+        <span class="badge">Pure Web Client (免后端/纯前端)</span>
+      </div>
+    </div>
+    <div class="header-links">
+      <a href="https://github.com/moki-flank/banano2gif" target="_blank">⭐ GitHub 源码</a>
+      <a href="https://hrioapi.hrio.site" target="_blank" class="btn-key">🔑 获取 API Key</a>
+    </div>
+  </header>
+
+  <div class="main-grid">
+    <div class="card">
+      <div class="api-settings">
+        <div class="field">
+          <label>HrioAPI Key (访问 <a href="https://hrioapi.hrio.site" target="_blank" style="color:#f59e0b">hrioapi.hrio.site</a> 获取):</label>
+          <input type="password" id="apiKey" placeholder="sk-xxxxxxxxxxxxxxxx" autocomplete="off">
+        </div>
+        <div class="field">
+          <label>API 接口地址:</label>
+          <input type="text" id="baseUrl" value="https://hrioapi.hrio.site/v1">
+        </div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="tab-text">📝 文生动图</button>
+        <button class="tab-btn" data-tab="tab-image">🖼️ 图生动图 (参考图)</button>
+        <button class="tab-btn" data-tab="tab-motion">🎭 动作迁移</button>
+        <button class="tab-btn" data-tab="tab-local">✂️ 本地切九/十六宫格</button>
+      </div>
+
+      <!-- Tab 1: Text-to-GIF -->
+      <div id="tab-text" class="tab-content active">
+        <div class="field">
+          <label>微动作预设模板：</label>
+          <div class="presets-wrap" id="textPresets">
+            <span class="preset-pill active" data-preset="waving">👋 挥手打招呼</span>
+            <span class="preset-pill" data-preset="petting">🐱 摸摸头/摸猫</span>
+            <span class="preset-pill" data-preset="laughing">😆 哈哈大笑</span>
+            <span class="preset-pill" data-preset="crying">😭 委屈哭泣</span>
+            <span class="preset-pill" data-preset="heart_wink">💖 眨眼比心</span>
+            <span class="preset-pill" data-preset="thumbs_up">👍 竖大拇指点赞</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>主体与动作描述：</label>
+          <textarea id="textPrompt" rows="3" placeholder="例如：可爱的3D小女孩戴着红色围巾，纯白背景"></textarea>
+        </div>
+      </div>
+
+      <!-- Tab 2: Image-to-GIF -->
+      <div id="tab-image" class="tab-content">
+        <div class="field">
+          <label>上传目标角色人设参考图（支持拖拽）：</label>
+          <div class="upload-zone" id="imgUploadZone">
+            <p>📁 点击或拖拽上传角色头像/立绘</p>
+            <input type="file" id="imgInput" accept="image/*" style="display:none">
+            <img id="imgPreview" class="upload-preview" alt="参考图预览">
+          </div>
+        </div>
+        <div class="field" style="margin-top:14px">
+          <label>选择动作或输入指令：</label>
+          <div class="presets-wrap" id="imgPresets">
+            <span class="preset-pill active" data-preset="waving">👋 挥手打招呼</span>
+            <span class="preset-pill" data-preset="petting">🐱 摸摸头</span>
+            <span class="preset-pill" data-preset="crying">😭 委屈哭泣</span>
+            <span class="preset-pill" data-preset="heart_wink">💖 眨眼比心</span>
+          </div>
+          <input type="text" id="imgActionPrompt" placeholder="可选：自定义补充动势描述">
+        </div>
+      </div>
+
+      <!-- Tab 3: Motion Transfer -->
+      <div id="tab-motion" class="tab-content">
+        <div class="field">
+          <label>1. 上传目标角色图（维持人设外观）：</label>
+          <div class="upload-zone" id="motionCharZone">
+            <p>👤 上传新角色图片</p>
+            <input type="file" id="motionCharInput" accept="image/*" style="display:none">
+            <img id="motionCharPreview" class="upload-preview" alt="人设预览">
+          </div>
+        </div>
+        <div class="field" style="margin-top:14px">
+          <label>2. 上传源动图/视频（提取动作指南）：</label>
+          <div class="upload-zone" id="motionSourceZone">
+            <p>🎬 上传源动图 (.gif, .webp) 或短视频 (.mp4)</p>
+            <input type="file" id="motionSourceInput" accept="image/gif,image/webp,video/mp4" style="display:none">
+            <p id="motionSourceFileName" style="color:#f59e0b; font-size:12px; margin-top:6px"></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 4: Local Direct Chopper -->
+      <div id="tab-local" class="tab-content">
+        <div class="field">
+          <label>上传已有的 3x3 九宫格或 4x4 十六宫格大图（离线切图去底）：</label>
+          <div class="upload-zone" id="localGridZone">
+            <p>🧩 上传大图 (1024 或 4K 4096)</p>
+            <input type="file" id="localGridInput" accept="image/*" style="display:none">
+            <img id="localGridPreview" class="upload-preview" alt="大图预览">
+          </div>
+        </div>
+      </div>
+
+      <!-- Global Options -->
+      <div class="options-row">
+        <div class="field">
+          <label>网格控制精度:</label>
+          <select id="optGrid">
+            <option value="3x3" selected>3x3 九宫格 (9帧)</option>
+            <option value="4x4">4x4 十六宫格 (16帧超丝滑)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>单帧播放时长:</label>
+          <select id="optDuration">
+            <option value="80">80ms (12.5 FPS 极速)</option>
+            <option value="100">100ms (10 FPS 16帧推荐)</option>
+            <option value="160">160ms (6.2 FPS 流畅)</option>
+            <option value="180" selected>180ms (9帧推荐)</option>
+          </select>
+        </div>
+        <label class="switch-label" style="margin-top:18px">
+          <input type="checkbox" id="optTransparent" checked>
+          <span>智能透明去底</span>
+        </label>
+        <label class="switch-label" style="margin-top:18px">
+          <input type="checkbox" id="opt4K">
+          <span>4K (4096) 规格</span>
+        </label>
+      </div>
+
+      <button class="btn-generate" id="btnRun">
+        <span>✨ 开始生成 / 切片合成</span>
+      </button>
+
+      <div class="log-box" id="logBox">[就绪] 纯前端 banano2gif 初始化完成，等待操作...</div>
+    </div>
+
+    <!-- Right Result Preview Panel -->
+    <div class="card">
+      <div class="card-title">
+        <span>🎬 动图实时预览</span>
+        <a id="btnDownload" class="btn-download" style="display:none" download="sticker.gif">
+          ⬇️ 下载 GIF
+        </a>
+      </div>
+
+      <div class="result-view">
+        <div class="gif-preview-box">
+          <img id="previewGif" alt="动图生成预览" style="display:none">
+          <div id="previewPlaceholder" class="status-text">
+            <span>动图生成后将在此处实时播放预览</span>
+          </div>
+        </div>
+
+        <p class="status-text" id="statusDesc">支持透明背景播放与原生帧提取</p>
+
+        <div class="card-title" style="width:100%; margin-top:16px">
+          <span id="framesTitle">🧩 序列帧预览 (已去白线)</span>
+        </div>
+        <div class="frames-grid" id="framesGrid"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let currentTab = 'tab-text';
+  let selectedPreset = 'waving';
+  let refImageBase64 = null;
+  let motionCharBase64 = null;
+  let motionSourceMedia = null;
+  let localGridImage = null;
+  let activeProxyBase = null;
+
+  const proxyCallbacks = {};
+  window.__B2G_PROXY_RESOLVE = function (reqId, payload) {
+    const cb = proxyCallbacks[reqId];
+    if (cb) {
+      delete proxyCallbacks[reqId];
+      cb(payload);
+    }
+  };
+
+  const apiKeyEl = document.getElementById('apiKey');
+  const baseUrlEl = document.getElementById('baseUrl');
+  const logBox = document.getElementById('logBox');
+  const btnRun = document.getElementById('btnRun');
+  const previewGif = document.getElementById('previewGif');
+  const previewPlaceholder = document.getElementById('previewPlaceholder');
+  const btnDownload = document.getElementById('btnDownload');
+  const framesGrid = document.getElementById('framesGrid');
+
+  try {
+    const savedKey = window.localStorage && localStorage.getItem('BANANO2GIF_KEY');
+    if (savedKey) apiKeyEl.value = savedKey;
+  } catch (_e) {}
+  apiKeyEl.addEventListener('input', () => {
+    try {
+      if (window.localStorage) localStorage.setItem('BANANO2GIF_KEY', apiKeyEl.value.trim());
+    } catch (_e) {}
+  });
+
+  function log(msg) {
+    const time = new Date().toLocaleTimeString();
+    logBox.innerHTML += `<br>[${time}] ${msg}`;
+    logBox.scrollTop = logBox.scrollHeight;
+  }
+
+  function getCandidateProxyBases() {
+    const list = [];
+    if (window.location.protocol.startsWith('http') && window.location.origin && window.location.origin !== 'null') {
+      list.push(window.location.origin);
+    }
+    for (const b of ['http://127.0.0.1:8096', 'http://127.0.0.1:8095', 'http://127.0.0.1:8090']) {
+      if (!list.includes(b)) list.push(b);
+    }
+    return list;
+  }
+
+  async function ensureLocalProxy(silent = false) {
+    if (activeProxyBase) return activeProxyBase;
+    for (const base of getCandidateProxyBases()) {
+      try {
+        const r = await fetch(base + '/api/ping', { mode: 'cors' });
+        if (r.ok) {
+          const j = await r.json();
+          if (j && j.ok) {
+            activeProxyBase = base;
+            if (j.default_key && !apiKeyEl.value.trim()) {
+              apiKeyEl.value = j.default_key;
+              try {
+                if (window.localStorage) localStorage.setItem('BANANO2GIF_KEY', j.default_key);
+              } catch (_e) {}
+            }
+            if (!silent) {
+              log(`🟢 已连接本地防跨域代理服务 (${base})${j.has_env_key ? '，已自动加载环境变量 HRIO_API_KEY' : ''}`);
+            }
+            return activeProxyBase;
+          }
+        }
+      } catch (_e) {}
+    }
+    return null;
+  }
+
+  ensureLocalProxy(false);
+
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      currentTab = btn.getAttribute('data-tab');
+      document.getElementById(currentTab).classList.add('active');
+      log(`切换至模式: ${btn.innerText}`);
+    });
+  });
+
+  document.querySelectorAll('.preset-pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+      pill.parentElement.querySelectorAll('.preset-pill').forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      selectedPreset = pill.getAttribute('data-preset');
+      log(`选定动作预设: ${pill.innerText}`);
+    });
+  });
+
+  function bindUpload(zoneId, inputId, previewId, onLoaded) {
+    const zone = document.getElementById(zoneId);
+    const input = document.getElementById(inputId);
+    const preview = previewId ? document.getElementById(previewId) : null;
+
+    zone.addEventListener('click', () => input.click());
+    zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.style.borderColor = '#f59e0b'; });
+    zone.addEventListener('dragleave', () => { zone.style.borderColor = ''; });
+    zone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      zone.style.borderColor = '';
+      if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+    });
+    input.addEventListener('change', () => {
+      if (input.files.length) handleFile(input.files[0]);
+    });
+
+    function handleFile(file) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const dataUrl = ev.target.result;
+        if (preview) {
+          preview.src = dataUrl;
+          preview.style.display = 'block';
+        }
+        onLoaded(dataUrl, file);
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  bindUpload('imgUploadZone', 'imgInput', 'imgPreview', (url) => { refImageBase64 = url; log('已加载参考图'); });
+  bindUpload('motionCharZone', 'motionCharInput', 'motionCharPreview', (url) => { motionCharBase64 = url; log('已加载动作迁移目标人设'); });
+  bindUpload('motionSourceZone', 'motionSourceInput', null, (url, file) => {
+    motionSourceMedia = { url, file, name: file.name };
+    document.getElementById('motionSourceFileName').innerText = `已选源媒体: ${file.name}`;
+    log(`已选源动作文件: ${file.name}`);
+  });
+  bindUpload('localGridZone', 'localGridInput', 'localGridPreview', (url) => {
+    localGridImage = new Image();
+    localGridImage.src = url;
+    log('已加载本地九/十六宫格大图');
+  });
+
+  // Pure JS BFS Matting
+  function removeBackgroundBFS(canvas, bgThreshold = 240, colorDist = 28) {
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width;
+    const h = canvas.height;
+    const imgData = ctx.getImageData(0, 0, w, h);
+    const data = imgData.data;
+
+    const corners = [[0, 0], [w - 1, 0], [0, h - 1], [w - 1, h - 1]];
+    let avgR = 0, avgG = 0, avgB = 0;
+    for (const [cx, cy] of corners) {
+      const idx = (cy * w + cx) * 4;
+      avgR += data[idx]; avgG += data[idx + 1]; avgB += data[idx + 2];
+    }
+    avgR /= 4; avgG /= 4; avgB /= 4;
+
+    const visited = new Uint8Array(w * h);
+    const queue = new Int32Array(w * h);
+    let head = 0, tail = 0;
+
+    function isBg(r, g, b) {
+      const dr = r - avgR, dg = g - avgG, db = b - avgB;
+      const dist = Math.sqrt(dr * dr + dg * dg + db * db);
+      return dist < colorDist || (r > bgThreshold && g > bgThreshold && b > bgThreshold);
+    }
+
+    for (let x = 0; x < w; x++) {
+      let idxTop = (0 * w + x) * 4;
+      if (isBg(data[idxTop], data[idxTop+1], data[idxTop+2])) { visited[0 * w + x] = 1; queue[tail++] = 0 * w + x; }
+      let idxBtm = ((h - 1) * w + x) * 4;
+      if (isBg(data[idxBtm], data[idxBtm+1], data[idxBtm+2])) { visited[(h - 1) * w + x] = 1; queue[tail++] = (h - 1) * w + x; }
+    }
+    for (let y = 0; y < h; y++) {
+      let idxL = (y * w + 0) * 4;
+      if (!visited[y * w + 0] && isBg(data[idxL], data[idxL+1], data[idxL+2])) { visited[y * w + 0] = 1; queue[tail++] = y * w + 0; }
+      let idxR = (y * w + (w - 1)) * 4;
+      if (!visited[y * w + (w - 1)] && isBg(data[idxR], data[idxR+1], data[idxR+2])) { visited[y * w + (w - 1)] = 1; queue[tail++] = y * w + (w - 1); }
+    }
+
+    while (head < tail) {
+      const pos = queue[head++];
+      const px = pos % w;
+      const py = (pos / w) | 0;
+
+      const neighbors = [
+        px > 0 ? pos - 1 : -1,
+        px < w - 1 ? pos + 1 : -1,
+        py > 0 ? pos - w : -1,
+        py < h - 1 ? pos + w : -1,
+      ];
+      for (const n of neighbors) {
+        if (n !== -1 && !visited[n]) {
+          const nIdx = n * 4;
+          if (isBg(data[nIdx], data[nIdx+1], data[nIdx+2])) {
+            visited[n] = 1;
+            queue[tail++] = n;
+          }
+        }
+      }
+    }
+
+    for (let i = 0; i < w * h; i++) {
+      if (visited[i]) data[i * 4 + 3] = 0;
+    }
+
+    ctx.putImageData(imgData, 0, 0);
+    return canvas;
+  }
+
+  // Pure JS 3x3 or 4x4 Grid Slicer
+  function sliceGridCanvas(img, gridLayout = '3x3', transparent = false) {
+    const w = img.naturalWidth || img.width;
+    const h = img.naturalHeight || img.height;
+    const is16 = gridLayout === '4x4' || gridLayout === '16';
+    const rows = is16 ? 4 : 3;
+    const cols = is16 ? 4 : 3;
+
+    const stepX = w / floatSafe(cols);
+    const stepY = h / floatSafe(rows);
+    const cropSize = Math.round(Math.min(stepX, stepY) * 0.9375);
+    const cropHalf = Math.round(cropSize / 2);
+
+    const cellCentersX = [];
+    for (let c = 0; c < cols; c++) cellCentersX.push(stepX * (c + 0.5));
+    const cellCentersY = [];
+    for (let r = 0; r < rows; r++) cellCentersY.push(stepY * (r + 0.5));
+
+    const frames = [];
+    framesGrid.innerHTML = '';
+    document.getElementById('framesTitle').innerText = `🧩 序列帧预览 (${rows * cols} 帧)`;
+
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const cx = cellCentersX[c];
+        const cy = cellCentersY[r];
+        const sx = Math.max(0, Math.min(w - cropSize, Math.round(cx - cropHalf)));
+        const sy = Math.max(0, Math.min(h - cropSize, Math.round(cy - cropHalf)));
+
+        const canvas = document.createElement('canvas');
+        canvas.width = cropSize;
+        canvas.height = cropSize;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, sx, sy, cropSize, cropSize, 0, 0, cropSize, cropSize);
+
+        if (transparent) {
+          removeBackgroundBFS(canvas);
+        }
+
+        const dataUrl = canvas.toDataURL('image/png');
+        frames.push(dataUrl);
+
+        const thumb = document.createElement('div');
+        thumb.className = 'frame-thumb';
+        const tImg = document.createElement('img');
+        tImg.src = dataUrl;
+        thumb.appendChild(tImg);
+        framesGrid.appendChild(thumb);
+      }
+    }
+    return frames;
+  }
+
+  function floatSafe(val) { return parseFloat(val) || 1.0; }
+
+  // Pure JS GIF89a Encoder (supports transparent channel disposal=2 and works on file:// without WebWorker CORS issues)
+  async function createGifFromFrames(framesUrls, durationMs) {
+    const frameImages = await Promise.all(framesUrls.map(u => new Promise((res, rej) => {
+      const im = new Image();
+      im.onload = () => res(im);
+      im.onerror = rej;
+      im.src = u;
+    })));
+    const W = 320;
+    const H = 320;
+    const B = [];
+    const pal = [];
+    function by(x) { B.push(x & 255); }
+    function wd(x) { by(x); by(x >> 8); }
+    function st(s) { for (let i = 0; i < s.length; i++) by(s.charCodeAt(i)); }
+
+    for (let r = 0; r < 6; r++) {
+      for (let g = 0; g < 7; g++) {
+        for (let b = 0; b < 6; b++) {
+          pal.push(r * 51, Math.round((g * 255) / 6), b * 51);
+        }
+      }
+    }
+    while (pal.length < 768) pal.push(0);
+
+    function blocks(a) {
+      for (let i = 0; i < a.length; i += 255) {
+        const n = Math.min(255, a.length - i);
+        by(n);
+        for (let j = 0; j < n; j++) by(a[i + j]);
+      }
+      by(0);
+    }
+
+    function lzw(a) {
+      const clear = 256, end = 257;
+      let next = 258, bits = 9;
+      let dict = new Map();
+      const out = [];
+      let acc = 0, nb = 0;
+      function emit(x) {
+        acc |= x << nb;
+        nb += bits;
+        while (nb >= 8) {
+          out.push(acc & 255);
+          acc >>>= 8;
+          nb -= 8;
+        }
+      }
+      emit(clear);
+      let pre = a[0];
+      for (let i = 1; i < a.length; i++) {
+        const k = a[i];
+        const key = pre * 256 + k;
+        const v = dict.get(key);
+        if (v !== undefined) {
+          pre = v;
+          continue;
+        }
+        emit(pre);
+        if (next < 4096) {
+          if (next === (1 << bits) && bits < 12) bits++;
+          dict.set(key, next++);
+        } else {
+          emit(clear);
+          dict = new Map();
+          bits = 9;
+          next = 258;
+        }
+        pre = k;
+      }
+      emit(pre);
+      emit(end);
+      if (nb) out.push(acc & 255);
+      return out;
+    }
+
+    st("GIF89a");
+    wd(W);
+    wd(H);
+    by(247);
+    by(255);
+    by(0);
+    pal.forEach(by);
+    by(33); by(255); by(11); st("NETSCAPE2.0"); by(3); by(1); wd(0); by(0);
+
+    const delay = Math.max(2, Math.round(Number(durationMs || 180) / 10));
+    frameImages.forEach((f) => {
+      const cv = document.createElement('canvas');
+      cv.width = W;
+      cv.height = H;
+      const c = cv.getContext('2d');
+      c.drawImage(f, 0, 0, W, H);
+      const rgba = c.getImageData(0, 0, W, H).data;
+      const idx = new Uint8Array(W * H);
+      for (let p = 0; p < W * H; p++) {
+        const k = p * 4;
+        if (rgba[k + 3] < 96) {
+          idx[p] = 255;
+          continue;
+        }
+        idx[p] =
+          Math.round((rgba[k] * 5) / 255) * 42 +
+          Math.round((rgba[k + 1] * 6) / 255) * 6 +
+          Math.round((rgba[k + 2] * 5) / 255);
+      }
+      by(33); by(249); by(4); by(9); wd(delay); by(255); by(0);
+      by(44); wd(0); wd(0); wd(W); wd(H); by(0); by(8);
+      blocks(lzw(idx));
+    });
+    by(59);
+
+    const blob = new Blob([new Uint8Array(B)], { type: 'image/gif' });
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  // CORS-safe remote image loader (supports data URL, local /api/proxy, and JSONP /api/proxy_js)
+  async function loadSafeCanvasImage(imgUrl) {
+    if (!imgUrl) throw new Error('图片地址为空');
+    const uStr = String(imgUrl).trim();
+
+    function loadFromSrc(src, useCors = false) {
+      return new Promise((res, rej) => {
+        const img = new Image();
+        img.referrerPolicy = 'no-referrer';
+        if (useCors) img.crossOrigin = 'anonymous';
+        img.onload = () => res(img);
+        img.onerror = () => rej(new Error('图片解码或跨域加载失败'));
+        img.src = src;
+      });
+    }
+
+    if (uStr.startsWith('data:') || uStr.startsWith('blob:')) {
+      return await loadFromSrc(uStr, false);
+    }
+
+    await ensureLocalProxy(true);
+    const bases = activeProxyBase ? [activeProxyBase, ...getCandidateProxyBases().filter(b => b !== activeProxyBase)] : getCandidateProxyBases();
+
+    // 1. Try local binary proxy (/api/proxy)
+    for (const base of bases) {
+      try {
+        const r = await fetch(base + '/api/proxy?url=' + encodeURIComponent(uStr), { mode: 'cors' });
+        if (r.ok) {
+          const blob = await r.blob();
+          if (blob && blob.size > 0) {
+            const objUrl = URL.createObjectURL(blob);
+            try {
+              return await loadFromSrc(objUrl, false);
+            } finally {
+              setTimeout(() => URL.revokeObjectURL(objUrl), 10000);
+            }
+          }
+        }
+      } catch (_e) {}
+    }
+
+    // 2. Try local JSONP <script> bridge (/api/proxy_js) - 100% immune to file:// CORS
+    for (const base of bases) {
+      try {
+        const dataUrl = await new Promise((resolve, reject) => {
+          const reqId = 'b2g_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+          const script = document.createElement('script');
+          const timer = setTimeout(() => {
+            delete proxyCallbacks[reqId];
+            script.remove();
+            reject(new Error('proxy_js timeout'));
+          }, 45000);
+          proxyCallbacks[reqId] = (res) => {
+            clearTimeout(timer);
+            script.remove();
+            if (res && res.ok && res.b64) {
+              resolve(`data:${res.mime || 'image/png'};base64,${res.b64}`);
+            } else {
+              reject(new Error((res && res.error) || 'proxy_js failed'));
+            }
+          };
+          script.onerror = () => {
+            clearTimeout(timer);
+            delete proxyCallbacks[reqId];
+            script.remove();
+            reject(new Error('proxy_js network error'));
+          };
+          script.src = base + '/api/proxy_js?url=' + encodeURIComponent(uStr) + '&id=' + encodeURIComponent(reqId);
+          document.head.appendChild(script);
+        });
+        if (dataUrl) return await loadFromSrc(dataUrl, false);
+      } catch (_e) {}
+    }
+
+    // 3. Fallback direct load with crossOrigin
+    return await loadFromSrc(uStr, true);
+  }
+
+  // CORS-safe HrioAPI request router (eliminates duplicate 'Access-Control-Allow-Origin: null, *' error)
+  async function requestHrioApi(subpath, bodyPayload, key, baseUrl) {
+    await ensureLocalProxy(true);
+    const bases = activeProxyBase ? [activeProxyBase, ...getCandidateProxyBases().filter(b => b !== activeProxyBase)] : getCandidateProxyBases();
+
+    for (const proxyBase of bases) {
+      try {
+        const headers = {
+          'Content-Type': 'application/json',
+          'X-Target-Base-Url': baseUrl,
+        };
+        if (key) headers['Authorization'] = `Bearer ${key}`;
+        const res = await fetch(`${proxyBase}/api/v1/${subpath.replace(/^\/+/, '')}`, {
+          method: 'POST',
+          mode: 'cors',
+          headers,
+          body: JSON.stringify(bodyPayload),
+        });
+        activeProxyBase = proxyBase;
+        return res;
+      } catch (_e) {}
+    }
+
+    // Fallback to direct fetch if no local proxy is running
+    return await fetch(`${baseUrl}/${subpath.replace(/^\/+/, '')}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
+      body: JSON.stringify(bodyPayload),
+    });
+  }
+
+  // Auto-switch duration recommendation when grid changes
+  document.getElementById('optGrid').addEventListener('change', (e) => {
+    const is16 = e.target.value === '4x4';
+    document.getElementById('optDuration').value = is16 ? '100' : '180';
+    log(`已切换至规格: ${is16 ? '4x4 十六宫格 (16帧)' : '3x3 九宫格 (9帧)'}，推荐帧时: ${is16 ? '100ms' : '180ms'}`);
+  });
+
+  // Run Handler
+  btnRun.addEventListener('click', async () => {
+    const isTransparent = document.getElementById('optTransparent').checked;
+    const is4K = document.getElementById('opt4K').checked;
+    const gridLayout = document.getElementById('optGrid').value;
+    const is16 = gridLayout === '4x4';
+    const duration = parseInt(document.getElementById('optDuration').value, 10);
+    await ensureLocalProxy(true);
+    const key = apiKeyEl.value.trim();
+    const baseUrl = (baseUrlEl.value.trim() || 'https://hrioapi.hrio.site/v1').replace(/\/+$/, '');
+
+    btnRun.disabled = true;
+    btnRun.innerHTML = `<span class="spinner"></span> 正在处理中...`;
+
+    try {
+      if (currentTab === 'tab-local') {
+        if (!localGridImage) {
+          alert('请先上传一张本地的九宫格或十六宫格原图！');
+          return;
+        }
+        log(`1. 开始纯前端自适应裁切 (${gridLayout})...`);
+        const frames = sliceGridCanvas(localGridImage, gridLayout, isTransparent);
+
+        log(`2. 正在浏览器本地合成 GIF (${frames.length}帧)...`);
+        const gifDataUrl = await createGifFromFrames(frames, duration);
+        showResult(gifDataUrl);
+        log('🎉 动图合成大功告成！');
+        return;
+      }
+
+      if (!key && !activeProxyBase) {
+        alert('请输入您的 HrioAPI Key！\n可在官方网站 https://hrioapi.hrio.site 免费注册获取。');
+        return;
+      }
+
+      let prompt = "";
+      let imagesPayload = [];
+      const reqSize = is4K ? "4096x4096" : "1024x1024";
+      const panelCount = is16 ? 16 : 9;
+
+      if (currentTab === 'tab-text') {
+        const userPrompt = document.getElementById('textPrompt').value.trim() || "A cute 3D chibi girl smiling";
+        prompt = `A clean ${is16 ? '4x4' : '3x3'} animation contact sheet grid of exactly ${panelCount} sequential square panels showing ONE continuous, ultra smooth micro-motion cycle: ${userPrompt}. LOCKED CAMERA: static camera, solid white background, seamless loop. STRICT NEGATIVE: ABSOLUTELY NO numbers, NO digits, NO labels, NO watermark. Pure artwork only${is4K ? ', 4K UHD 4096x4096' : ''}.`;
+      }
+      else if (currentTab === 'tab-image') {
+        if (!refImageBase64) { alert('请上传角色人设参考图！'); return; }
+        const userAction = document.getElementById('imgActionPrompt').value.trim() || "cheerfully waving and smiling";
+        prompt = `A clean ${is16 ? '4x4' : '3x3'} animation contact sheet grid of exactly ${panelCount} sequential square panels. REFERENCE CHARACTER LOCK: strictly preserve identical face, hairstyle, hair color, and clothing from the provided reference image. Action: ${userAction}. LOCKED CAMERA: static camera, solid white background. STRICT NEGATIVE: ABSOLUTELY NO numbers, NO digits, NO labels. Pure artwork only${is4K ? ', 4K UHD 4096x4096' : ''}.`;
+        imagesPayload = [refImageBase64];
+      }
+      else if (currentTab === 'tab-motion') {
+        if (!motionCharBase64 || !motionSourceMedia) { alert('请同时上传【目标人设图】与【源动作文件】！'); return; }
+        prompt = `A clean ${is16 ? '4x4' : '3x3'} animation contact sheet grid of exactly ${panelCount} panels. DUAL REFERENCE: Image 1 is target character, Image 2 is motion guide. Mirror the motion progression onto character. LOCKED CAMERA, solid white background. STRICT NEGATIVE: NO numbers, NO text${is4K ? ', 4K UHD 4096x4096' : ''}.`;
+        imagesPayload = [motionCharBase64, motionSourceMedia.url];
+      }
+
+      log(`1. 正在请求模型 (网格: ${gridLayout}, 规格: ${reqSize})...`);
+      const bodyPayload = {
+        model: "gemini-nano-banana-2.1",
+        prompt: prompt,
+        n: 1,
+        size: reqSize,
+      };
+      if (imagesPayload.length) {
+        bodyPayload.images = imagesPayload;
+        bodyPayload.media = imagesPayload.map(u => ({ kind: "image", url: u }));
+      }
+
+      const res = await requestHrioApi('images/generations', bodyPayload, key, baseUrl);
+
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`API 报错 (${res.status}): ${errText}`);
+      }
+
+      const resData = await res.json();
+      let imgUrl = null;
+      if (resData.data && resData.data[0]) {
+        const first = resData.data[0];
+        imgUrl = first.data_url || (first.b64_json ? `data:image/png;base64,${first.b64_json}` : null) || first.url;
+      }
+      if (!imgUrl) throw new Error('模型未返回有效图片结果');
+
+      log(`2. ${panelCount} 宫格生成成功，正在切帧与去底...`);
+      const loadedImg = await loadSafeCanvasImage(imgUrl);
+
+      const frames = sliceGridCanvas(loadedImg, gridLayout, isTransparent);
+      log(`3. 正在合成 ${panelCount} 帧 GIF 动图 (${duration}ms/帧)...`);
+      const gifDataUrl = await createGifFromFrames(frames, duration);
+      showResult(gifDataUrl);
+      log(`🎉 ${panelCount} 帧动图生成大功告成！`);
+
+    } catch (e) {
+      log(`<span style="color:#ef4444">[失败] ${e.message}</span>`);
+      alert(`执行失败: ${e.message}`);
+    } finally {
+      btnRun.disabled = false;
+      btnRun.innerHTML = `<span>✨ 开始生成 / 切片合成</span>`;
+    }
+  });
+
+  function showResult(gifDataUrl) {
+    previewGif.src = gifDataUrl;
+    previewGif.style.display = 'block';
+    previewPlaceholder.style.display = 'none';
+    btnDownload.href = gifDataUrl;
+    btnDownload.style.display = 'inline-flex';
+  }
+</script>
+
+</body>
+</html>
